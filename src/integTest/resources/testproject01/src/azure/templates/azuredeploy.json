@@ -1,0 +1,57 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vnetResourceGroup": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "if empty, the current resource group will be used"
+            }
+        },
+        "vnetName": {
+            "type": "string",
+            "defaultValue": "vnet"
+        },
+        "subnetName": {
+            "type": "string",
+            "defaultValue": "sub1"
+        }
+    },
+    "variables": {
+        "vnetId": "[if(equals(parameters('vnetResourceGroup'), ''), resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), resourceId(parameters('vnetResourceGroup'), 'Microsoft.Network/virtualNetworks',parameters('vnetName')))]",
+        "subnetId": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]",
+
+        "repositoryURL": "[deployment().properties.templateLink.uri]",
+        "_url":  "[concat(variables('repositoryURL'),'?')]",
+        "_index": "[indexOf(variables('_url'), '?')]",
+        "repositoryURLParams": "[substring(variables('_url'), variables('_index'), sub(length(substring(variables('_url'), variables('_index'))),1) )]"
+    },
+
+    "resources": [
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "nic",
+            "apiVersion": "2017-03-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+           ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "nic-ipcfg",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('subnetId')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic"
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "outputs": {
+
+    }
+}

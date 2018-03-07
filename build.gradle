@@ -1,0 +1,219 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.microsoft.azure:azure:1.5.0'
+        classpath 'com.microsoft.azure:azure-mgmt-network:+'
+    }
+
+    // Azure credentials are required i.e. for tests !
+    assert project.hasProperty('azureClientId')    
+    assert project.hasProperty('azureClientSecret')
+    assert project.hasProperty('azureClientDomain')
+    assert project.hasProperty('azureSubscriptionId')
+} 
+
+import com.microsoft.azure.AzureEnvironment
+import com.microsoft.azure.credentials.ApplicationTokenCredentials
+import com.microsoft.azure.management.Azure
+import com.microsoft.azure.management.resources.fluentcore.utils.SdkContext
+import com.microsoft.azure.management.resources.fluentcore.arm.Region
+
+plugins {
+    // project plugins
+    id 'java-gradle-plugin'
+    id 'groovy'
+
+    // publish plugin
+    id 'maven-publish'
+
+    // intershop version plugin
+    id 'com.intershop.gradle.scmversion' version '3.4.0'
+
+    // plugin for documentation
+    id 'org.asciidoctor.convert' version '1.5.3'
+
+    // plugin for publishing to Gradle Portal
+    id 'com.gradle.plugin-publish' version '0.9.9'
+
+    // plugin for publishing to jcenter
+    id 'com.jfrog.bintray' version '1.8.0'
+}
+scm {
+    version {
+        initialVersion = '0.9.0-SNAPSHOT'
+    }
+}
+
+// release configuration
+group = 'com.intershop.gradle.plugin.azure'
+description 'Gradle Plugin for working with Azure ARM templates'
+version = scm.version.version
+
+gradlePlugin {
+    plugins {
+        azurePlugin {
+            id = 'com.intershop.gradle.plugin.azure'
+            implementationClass = 'com.intershop.cloudops.azure.AzurePlugin'
+        }
+    }
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+// set correct project status
+if (project.version.endsWith('-SNAPSHOT')) {
+    status = 'snapshot'
+}
+
+
+repositories {
+    jcenter()
+}
+
+sourceSets {
+    integTest {
+        groovy {
+            srcDir 'src/integTest/groovy'
+        }
+        resources {
+            srcDir 'src/integTest/resources'
+        }
+    }
+}
+
+configurations {
+    integTestCompile.extendsFrom testCompile
+    integTestRuntime.extendsFrom testRuntime
+}
+
+dependencies {
+    compile gradleApi()
+    compile "org.codehaus.groovy:groovy-all:2.4.12"
+    compile 'com.microsoft.azure:azure:1.5.0'
+    compile 'com.microsoft.azure:azure-mgmt-network:+'
+    compile 'commons-net:commons-net:3.3'
+    compile 'org.jtwig:jtwig-core:5.86.1.RELEASE'
+
+    testCompile("org.spockframework:spock-core:1.1-groovy-2.4") {
+        exclude group: "org.codehaus.groovy"
+    }
+
+    integTestCompile gradleTestKit()
+    integTestCompile sourceSets.main.output
+    integTestCompile sourceSets.test.output
+    integTestCompile configurations.compile
+    integTestCompile configurations.testCompile
+    integTestRuntime configurations.runtime
+    integTestRuntime configurations.testRuntime
+}
+
+
+project.ext.azureClient = {
+    ApplicationTokenCredentials creds = 
+        new ApplicationTokenCredentials(
+            project.azureClientId, 
+            project.azureClientDomain, 
+            project.azureClientSecret, 
+            AzureEnvironment.AZURE
+        )
+
+    def azure = Azure.authenticate(creds)
+         .withSubscription(project.azureSubscriptionId)
+    
+    return azure
+}
+
+
+project.ext.azureRGName = SdkContext.randomResourceName("test-plugin-", 20)
+project.ext.azureStrgName = SdkContext.randomResourceName("ishtstplgn", 15)
+
+// called after integTest for deleting azure test resources
+task azureTestCleanUp {
+    doFirst() {
+        if (project.azureClient().resourceGroups().contain(project.azureRGName)) {
+            
+            project.azureClient().resourceGroups().deleteByName(project.azureRGName)
+        }  
+    }
+}
+
+task integTest(type: Test) {
+    environment "AZURE_CLIENT_ID",       project.azureClientId
+    environment "AZURE_CLIENT_SECRET",   project.azureClientSecret
+    environment "AZURE_CLIENT_DOMAIN",   project.azureClientDomain
+    environment "AZURE_SUBSCRIPTION_ID", project.azureSubscriptionId
+    
+    environment "AZURE_RESOURCE_GROUP_NAME",  project.azureRGName
+    environment "AZURE_STORAGE_ACCOUNT_NAME", project.azureStrgName
+
+    description = 'Runs the integration tests.'  
+
+    testClassesDirs = sourceSets.integTest.output.classesDirs
+    classpath = sourceSets.integTest.runtimeClasspath 
+
+    binResultsDir = file("$buildDir/integration-test-results/binary/integTest")
+
+    reports { 
+        html.destination = new File(buildDir, "reports/integration-test")
+        junitXml.destination = new File(buildDir, "integration-test-results")
+    }
+
+    doFirst() {
+        project.azureClient().storageAccounts().define(project.azureStrgName)
+                .withRegion(Region.EUROPE_NORTH)
+                .withNewResourceGroup(project.azureRGName)
+                .create()
+    }
+
+    mustRunAfter tasks.test
+    finalizedBy tasks.azureTestCleanUp
+}
+
+tasks.check.dependsOn integTest
+
+task copyAsciiDoc {
+    def outputDir = file("$buildDir/tmp/asciidoctorSrc")
+    def inputFiles = fileTree(dir: rootDir, include: '**/*.asciidoc, doc/**/*')
+
+    inputs.files inputFiles
+    outputs.dir outputDir
+
+    doLast {
+        outputDir.mkdirs()
+
+        copy {
+            from inputFiles
+            into outputDir
+        }
+    }
+}
+
+asciidoctorj {
+    noDefaultRepositories = true
+}
+
+asciidoctor {
+    sourceDir "${buildDir}/tmp/asciidoctorSrc"
+    sources {
+        include 'README.asciidoc'
+    }
+
+    backends 'html5', 'docbook'
+    options doctype : 'article',
+            ruby    : 'erubis'
+    attributes  'latestRevision'     : project.version,
+            'toc':'left',
+            'toclevels':'2',
+            'source-highlighter' : 'coderay',
+            'icons': 'font',
+            'setanchors':'true',
+            'idprefix':'asciidoc_',
+            'idseparator':'-',
+            'docinfo1':'true'
+}
+
+asciidoctor.dependsOn copyAsciiDoc

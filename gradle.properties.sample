@@ -1,0 +1,9 @@
+
+# Azure Credentials
+azureClientId       = 
+azureClientDomain   = intershop.com
+azureClientSecret   = 
+azureSubscriptionId = 5888a666-fc3c-48a1-a28f-08ce00efbc1a
+
+# Storage Account
+azureStorageId = 

@@ -1,0 +1,321 @@
+= Gradle Plugin for working of Azure ARM Templates
+:latestRevision: 0.9.0
+
+== Summary
+It is quite simple to deploy a single ARM template file from your local environment. 
+However, when you divide your deployment template into sub templates, or the template calls 
+other artifacts like custom script extensions, you need to trigger the deployment
+with using a template link. Hence you have to upload the project into a repository 
+before you can test it. 
+
+These plugin provides a workflow for creating, testing adn publishing ARM templates
+in context of a gradle project. For testing templates, they will be uploaded temporary
+into a BlobContainer. So you can test the deployment before you commit it into a VCS.
+
+== Usage
+
+There is an link:test/resources/testproject01[example project] within the test resources.
+
+=== Prerequisites
+
+===== Azure credentials
+For connecting Azure, the follwoing values are required:
+
+* ClientId, secret and domain of a Service Principal.
+* The Id of an existing Azure Subscription for test deployments.
+* The ResourceId of an existing Azure Storage Account for uploading the ARM templates
+
+The values can be configured within the gradle.properties. 
+
+gradle.properties
+[source, properties]
+----
+# Azure Credentials
+azureClientId       = 
+azureClientDomain   = 
+azureClientSecret   = 
+azureSubscriptionId = 
+
+# Storage Account
+azureStorageId = 
+----
+
+===== ensure a valid domain name as projectName
+The AzureExtension provides a property `projectName`, used i.e. for  uploading the ARM templates
+into a dedicated directory of the BlobContainer. The value has to be a valid domain name.
+By default, the project name of the gradle project is used. But another value has to be be set, if 
+the gradle project name contains unsupported characters:
+
+build.gradle
+----
+azure {
+    projectName 'my-project'
+}
+----
+
+Further configuration options are described below.
+
+=== implement ARM templates 
+
+===== put templates into template src folder:
+Deployment templates has to be stored in the `src` directory: `$projectRoot/src/azure/templates`. It 
+is common practice to name the main template `azuredeploy.json` and the related paramenters file
+`azuredeploy.parameters.json`. 
+
+===== put additional test templates into the testSrc folder:
+Suppose the deployment requires additional resources. I.e., the deployment of a special VM role
+requires an exisiting vnet, taken over as template parameter. For testing purpose, additonal
+resources can be deployed with using deployment templates, put into the `testSrc` 
+directory `$projectRoot/src/azure/testTemplates`. The content of the testSrc directory is only 
+used for a testwise deployment and will be ignored from the `azurePublish` and `azureDeploy` tasks.
+
+The `addDeployment()` method of the of the AzureExtension has to be used for registering 
+additional "test" deployments. 
+
+===== use `azureTestDeploy' for a testwise deployment of your templates during the implementation:
+The task `azureTestDeploy`:
+
+* uploads the  content of the template src- and testSrc directories into a temporary directory of
+  your template BlobContainer
+* creates a temporary resource group into your subscription, if not exists
+* deploys the uploaded templates into the temporary resource group
+
+Use `azureTestClean` for deleting the uploaded templates and the temporary resource group:
+
+=== execute automated tests
+
+The task `azureTest` can be used locally or as part of the CI pipeline for executing 
+automated tests against a testwise deployment of the templates. 
+
+The plugin provides an additional sourceSet `azureTest`.
+
+The task `azureTest`:
+* calls `azureTestDeploy`
+* prepares a temporary properties file with related deployment information for tests to be executed
+* executes automated tests of the `azureTest` resource set
+* ensures the trigger of `azureTestClean` after the test execution.
+
+=== publish templates 
+
+You can use the task `azurePublish` for uploading the current version of your deployment templates
+into the BlobContainer permanently in order to make them available for other projects.
+
+===== define a version for your templates:
+
+Use the `buildVersion()` method of the AzureExtension for defining the the version of the 
+templates.
+
+build.gradle
+----
+azure {
+    buildVersion '0.9'
+}
+----
+
+===== call `azurePublish`
+
+The task will upload the templates from the `src` directory into the BlobContainer 
+directory `<projectName>/<buildVersion>`, if not already exists.
+
+=== configure resource groups
+
+If your template project represents a configuration of a dedicated resource group,
+you can use the task `azureDeploy` for applying the templates to this resource group 
+automatically as part of a CD pipeline.
+
+The name, subscription and region of the resource group has to be configured with using
+the AzureExtension:
+
+build.gradle
+----
+azure {
+    deploymentResourceGroupName   'my-resource-group'
+    deploymentResourceGroupRegion 'northeurope'
+    deploymentSubscriptionId      '<subscriptionId>'
+}
+---- 
+
+`deploymentResourceGroupRegion` and `deploymentSubscriptionId` are optional. If not set, 
+the properties `subscriptionId` and `resourceGroupRegion` will be used.
+
+== Project Extension 'azure'
+
+=== Properties
+[cols="1,1,1,1,3", options="header"] 
+|===
+|Property 
+|Environment Variable 
+|Project Property 
+|Default Value 
+|Description  
+
+    
+|clientId
+|AZURE_CLIENT_ID
+|azureClientId
+|
+|Azure Credentials
+
+|domain
+|AZURE_CLIENT_DOMAIN
+|azureClientDomain
+|
+|Azure Credentials
+
+|secret
+|AZURE_CLIENT_SECRET
+|azureClientSecret
+|
+|Azure Credentials
+
+|subscriptionId
+|AZURE_SUBSCRIPTION_ID
+|azureSubscriptionId
+|
+|Azure subscrption, used for test deployments
+
+|workspaceIdPrefix
+|AZURE_WORKSPACE_ID_PREFIX
+|azureWorkspaceIdPrefix
+|'test'
+|@see task `generateWorkspaceId`
+
+|resourceGroupRegion
+|AZURE_RESOURCEGROUP_REGION
+|azureResourceGroupRegion
+|'northeurope'
+|region of the created test resource group
+
+|storageId
+|AZURE_STORAGE_ID
+|azureStorageId
+|
+|Azure resourceId of the storage account, used for uploading the templates.
+
+|storageContainer
+|AZURE_STORAGE_CONTAINER
+|azureStorageContainer
+|'templates'
+|name of the BlobContainer for uploading the templates.
+
+|projectName
+|AZURE_PROJECT_NAME
+|azureProjectName
+|`$project.name()`
+|name of the project. Has to be a valid domain name!
+
+|version
+|AZURE_BUILD_VERSION
+|azureBuildVersion
+|
+|Name of the sub directory within the BlobContainer, used for uploading the current version of the templates.
+
+|deploymentSubscriptionId
+|AZURE_DEPLOYMENT_SUBSCRIPTION_ID
+|azureDeploymentSubscriptionId
+|`$azureSubscriptionId`
+|Subscription of the deployment resource group
+
+|deploymentResourceGroupName
+|AZURE_DEPLOYMENT_RG_NAME
+|azureDeploymentResourceGroupName
+|
+|name of the deployment resource group
+
+|deploymentResourceGroupRegion
+|AZURE_DEPLOYMENT_RG_REGION
+|azureDeploymentResourceGroupRegion
+|`$resourceGroupRegion`
+|Region of the deployment resource group
+
+|templateSrcDir
+|
+|
+|`$projectRoot/src/azure/templates`
+|
+
+|templateTestSrcDir
+|
+|
+|`$projectRoot/src/azure/testTemplates`
+|
+|===
+
+=== Methods
+[cols="2,5", options="header"] 
+|===
+|Method
+|Description
+
+|addDeployment(id, templatName [, parameterFile])
+|Add a new or updade an existing deployment task.
+|===
+
+== Tasks
+
+[cols="2,5", options="header"] 
+|===
+|Task
+|Description
+
+|azureDeploy
+|Azure deployment
+
+|azurePublish
+|Publish ARM templates.
+
+|azureTest
+|Test execution of the azureTest source set.
+
+|azureTestClean
+|Cleanup after a test run
+
+|azureTestDeploy
+|Azure test deployment
+
+|azureTestDeploy_<deploymentId>
+|Azure test template deployment.
+
+|createDeploymentResourceGroup
+|Create the deployment resource group, if not exists.
+
+|createTestResourceGroup
+|Creates the azure resource group.
+
+|deleteTestBlobDir
+|Removes templates, uploaded for test deployment, from the 'templates 'BlobContainer.
+
+|deleteTestResourceGroup
+|Deletes the azure test resource group.
+
+|generateWorkspaceId
+|Generates an azure resource group name for the current workspace, if not exists.
+The generated name has the structure `$workspaceIdPrefix_$projectName_$aRandomNumber`.
+The name is stored into a file `$buildDir/azure/.workspaceId`.   
+
+|getWorkspaceId
+|Determine the azure resource group name related for the current workspace
+
+|getBlobContainer
+|Create/Ensure the 'templates' - BlobContainer at the storage account
+
+|prepareTestEnvironment
+|Preparation of Azure Tests
+
+|processARMTemplates
+|Prepares azure templates for publishing and deployment.
+
+|processARMTemplatesForTest
+|Prepares azure templates for test deployments.
+
+|triggerCleanTestEnvironment
+|Ensures the deletion of all test resources after azureTest was called
+
+|uploadARMTemplatesForDeployment
+|Upload ARM templates to azure for a deployment.
+
+|uploadARMTemplatesForTest
+|Upload ARM templates for a test deployment.
+|===
+
+image::doc/tasks.gif[Tasks]
