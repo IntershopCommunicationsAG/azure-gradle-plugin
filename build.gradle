@@ -283,7 +283,7 @@ pluginBundle {
 
     plugins {
         gradleTestPlugin {
-            id = 'com.intershop.gradle.architectural.report'
+            id = 'com.intershop.gradle.plugin.azure'
             displayName = project.description
         }
     }
