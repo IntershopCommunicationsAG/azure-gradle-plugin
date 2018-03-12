@@ -279,10 +279,10 @@ pluginBundle {
     website = "https://github.com/IntershopCommunicationsAG/${project.name}"
     vcsUrl = "https://github.com/IntershopCommunicationsAG/${project.name}"
     description = project.description
-    tags = ['intershop', 'gradle', 'plugin', 'validation', 'analysis']
+    tags = ['intershop', 'gradle', 'plugin', 'azure' ]
 
     plugins {
-        gradleTestPlugin {
+        azurePlugin {
             id = 'com.intershop.gradle.plugin.azure'
             displayName = project.description
         }
