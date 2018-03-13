@@ -67,14 +67,7 @@ public class CreateBlobContainerTask extends AbstractAzureTask
 
         StorageAccount sAccount;
 
-        try
-        {
-            sAccount = getClient().storageAccounts().getById(storageId);
-        }
-        catch(Exception e)
-        {
-            throw new GradleException("invalid storageId or storage not found: " + storageId);
-        }
+        sAccount = findStorageAccount(storageId);
 
         StorageAccountKey sKey = sAccount.getKeys().get(0);
 

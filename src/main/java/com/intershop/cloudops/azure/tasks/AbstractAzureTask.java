@@ -4,6 +4,7 @@ import com.intershop.cloudops.azure.AzureExtension;
 import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.credentials.ApplicationTokenCredentials;
 import com.microsoft.azure.management.Azure;
+import com.microsoft.azure.management.storage.StorageAccount;
 import com.microsoft.azure.storage.blob.CloudBlobContainer;
 import com.microsoft.azure.storage.blob.SharedAccessBlobPermissions;
 import com.microsoft.azure.storage.blob.SharedAccessBlobPolicy;
@@ -66,6 +67,14 @@ public abstract class AbstractAzureTask extends DefaultTask
         this.secret = secret;
     }
 
+    protected Azure getClient(String subscriptionId)
+    {
+        ApplicationTokenCredentials creds = new ApplicationTokenCredentials(clientId, domain, secret,
+                        AzureEnvironment.AZURE);
+
+        return Azure.authenticate(creds).withSubscription(subscriptionId);
+    }
+
     protected Azure getClient()
     {
         if (client == null)
@@ -74,15 +83,31 @@ public abstract class AbstractAzureTask extends DefaultTask
             {
                 if (client == null)
                 {
-                    ApplicationTokenCredentials creds = new ApplicationTokenCredentials(clientId, domain, secret,
-                                    AzureEnvironment.AZURE);
-
-                    client = Azure.authenticate(creds).withSubscription(subscriptionId.get());
+                    client = getClient(subscriptionId.get());
                 }
             }
         }
 
         return (client);
+    }
+
+    protected StorageAccount findStorageAccount(String storageId)
+    {
+        Azure client;
+
+        if(storageId.startsWith("/subscriptions/")) {
+            client = getClient(storageId.split("/")[2]);
+        } else {
+            client = getClient();
+        }
+
+        StorageAccount sAccount = getClient().storageAccounts().getById(storageId);
+
+        if (sAccount == null) {
+            throw new GradleException("invalid storageId or storage not found: " + storageId);
+        }
+
+        return sAccount;
     }
 
     protected String generateSASToken(CloudBlobContainer blobContainer, int timeSpan)

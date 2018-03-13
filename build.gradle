@@ -37,7 +37,7 @@ plugins {
 }
 scm {
     version {
-        initialVersion = '0.9.0'
+        initialVersion = '0.9.1'
     }
 }
 
