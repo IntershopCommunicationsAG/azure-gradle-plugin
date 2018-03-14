@@ -5,9 +5,8 @@ import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.credentials.ApplicationTokenCredentials;
 import com.microsoft.azure.management.Azure;
 import com.microsoft.azure.management.storage.StorageAccount;
-import com.microsoft.azure.storage.blob.CloudBlobContainer;
-import com.microsoft.azure.storage.blob.SharedAccessBlobPermissions;
-import com.microsoft.azure.storage.blob.SharedAccessBlobPolicy;
+import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.blob.*;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
@@ -101,7 +100,7 @@ public abstract class AbstractAzureTask extends DefaultTask
             client = getClient();
         }
 
-        StorageAccount sAccount = getClient().storageAccounts().getById(storageId);
+        StorageAccount sAccount = client.storageAccounts().getById(storageId);
 
         if (sAccount == null) {
             throw new GradleException("invalid storageId or storage not found: " + storageId);
@@ -128,6 +127,20 @@ public abstract class AbstractAzureTask extends DefaultTask
         catch(Exception e)
         {
             throw new GradleException("could not generate SASToken: " + e.getMessage());
+        }
+    }
+
+    protected void deleteBlobDir(CloudBlobContainer container, String path) throws StorageException
+    {
+        for (ListBlobItem blobItem : container.listBlobs(path))
+        {
+            if (blobItem instanceof CloudBlockBlob)
+            {
+                ((CloudBlockBlob)blobItem).deleteIfExists();
+            } else {
+                String subdir = blobItem.getUri().getPath().replaceAll("^/[^/]*?/", "");
+                deleteBlobDir(container,  subdir);
+            }
         }
     }
 

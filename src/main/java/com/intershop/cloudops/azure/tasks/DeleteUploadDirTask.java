@@ -47,17 +47,7 @@ public class DeleteUploadDirTask extends AbstractAzureTask
 
         try
         {
-            for (ListBlobItem blobItem : container.listBlobs(uploadDir))
-            {
-                if (blobItem instanceof CloudBlob)
-                {
-                    CloudBlob blob = (CloudBlob)blobItem;
-
-                    getLogger().info("deleting: " + blob.getUri().toString());
-
-                    blob.deleteIfExists();
-                }
-            }
+            deleteBlobDir(container, uploadDir);
         }
         catch(Exception e)
         {
