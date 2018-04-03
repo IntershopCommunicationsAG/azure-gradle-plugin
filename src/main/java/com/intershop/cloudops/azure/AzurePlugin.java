@@ -40,6 +40,8 @@ public class AzurePlugin implements Plugin<Project>
     final static public String CREATE_DEPLOY_RG_TASK = "createDeploymentResourceGroup";
     final static public String UPLOAD_DEPLOY_TEMPLATE_TASK = "uploadARMTemplatesForDeployment";
     final static public String DEPLOY_TASK = "azureDeploy";
+    final static public String PREPARE_MONITOR_ENV_TASK = "prepareMonitorEnvironment";
+    final static public String MONITOR_TASK = "azureMonitor";
 
     final static public String AZURE_TEST_COMPILE_CONF = "azureTestCompile";
     final static public String AZURE_TEST_RUNTIME_CONF = "azureTestRuntime";
@@ -124,6 +126,10 @@ public class AzurePlugin implements Plugin<Project>
         new CreateDeploymentRGTaskBuilder(CREATE_DEPLOY_RG_TASK, project, azure).build();
 
         new UploadDeploymentTemplateTaskBuilder(UPLOAD_DEPLOY_TEMPLATE_TASK, project, azure).build();
+
+        new PrepareMonitorEnvTaskBuilder(PREPARE_MONITOR_ENV_TASK, project, azure).build();
+
+        new MonitorTaskBuilder(MONITOR_TASK, project, azure).withSourceSet(azureTestSourceSet).build();
     }
 
     private void createTestDeploymentTask(Project project, AzureExtension azure, String deploymentId, String template,

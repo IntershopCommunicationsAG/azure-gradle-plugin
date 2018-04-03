@@ -1,0 +1,22 @@
+plugins {
+    id 'com.intershop.gradle.plugin.azure'
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    azureTestCompile gradleApi()
+    azureTestCompile ('org.spockframework:spock-core:1.0-groovy-2.4') {
+        exclude group: 'org.codehaus.groovy', module: 'groovy-all'
+    }
+    azureTestCompile 'com.microsoft.azure:azure:1.5.0'
+}
+
+azure {
+    //buildVersion '0.9'
+    //projectName 'mytestproject42'
+    //deploymentResourceGroupName 'productionResourceGroup'
+    //deploymentResourceGroupRegion 'northeurope'
+}

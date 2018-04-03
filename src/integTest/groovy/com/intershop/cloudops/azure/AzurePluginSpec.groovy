@@ -3,6 +3,7 @@ package com.intershop.cloudops.azure
 import com.intershop.cloudops.azure.utils.AzureUtils
 import com.microsoft.azure.management.Azure
 import com.microsoft.azure.management.resources.Deployment
+import com.microsoft.azure.management.resources.ResourceGroup
 import com.microsoft.azure.management.storage.StorageAccount
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -323,7 +324,30 @@ class AzurePluginSpec extends Specification {
 
         where:
         projectName = 'testproject01'
+    }
 
+    def "azureMonitor"() {
+        given:
+        setupTestProject(projectName)
+        propertiesFile << """
+            azureBuildVersion = 0.9
+            azureDeploymentResourceGroupName = ${azureUtils.resourceGroupName}
+        """
+
+        when:
+        def result = gradle 'azureDeploy', '-is', '-x', 'azureTest'
+
+        then: "expected tasks were triggered"
+        result.task(":azureDeploy")?.outcome == TaskOutcome.SUCCESS
+
+        when:
+        result = gradle 'azureMonitor', '-is'
+
+        then:
+        true
+
+        where:
+        projectName = 'testproject02'
     }
 
 

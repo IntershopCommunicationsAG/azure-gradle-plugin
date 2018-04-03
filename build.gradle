@@ -35,9 +35,10 @@ plugins {
     // plugin for publishing to jcenter
     id 'com.jfrog.bintray' version '1.8.0'
 }
+
 scm {
     version {
-        initialVersion = '0.9.2'
+        initialVersion = '0.9.3'
     }
 }
 

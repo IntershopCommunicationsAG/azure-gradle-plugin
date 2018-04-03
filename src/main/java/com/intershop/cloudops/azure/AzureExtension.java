@@ -16,6 +16,7 @@ public class AzureExtension
 {
     final static public String ID_FILE_NAME = "azure/.workspaceId";
     final static public String TEST_ENV_FILE_NAME = "azure/testEnv.properties";
+    final static public String MONITOR_ENV_FILE_NAME = "azure/monitorEnv.properties";
 
     final static public String CLIENTID_ENV = "AZURE_CLIENT_ID";
     final static public String CLIENTID_PRJ = "azureClientId";
@@ -72,6 +73,7 @@ public class AzureExtension
 
     final private RegularFileProperty idFile;
     final private RegularFileProperty testEnvFile;
+    final private RegularFileProperty monitorEnvFile;
     final private DirectoryProperty templateSrcDir;
     final private DirectoryProperty templateTestSrcDir;
     final private DirectoryProperty templateBuildDir;
@@ -127,6 +129,9 @@ public class AzureExtension
 
         this.testEnvFile = project.getLayout().fileProperty();
         this.testEnvFile.set(new File(project.getBuildDir(), TEST_ENV_FILE_NAME));
+
+        this.monitorEnvFile = project.getLayout().fileProperty();
+        this.monitorEnvFile.set(new File(project.getBuildDir(), MONITOR_ENV_FILE_NAME));
 
         this.templateSrcDir = project.getLayout().directoryProperty();
         this.templateSrcDir.set(new File(project.getRootDir(), TEMPLATE_SRC_DIR));
@@ -197,6 +202,10 @@ public class AzureExtension
     public RegularFileProperty getTestEnvFile()
     {
         return testEnvFile;
+    }
+
+    public RegularFileProperty getMonitorEnvFile() {
+        return monitorEnvFile;
     }
 
     public DirectoryProperty getTemplateTestSrcDir()
