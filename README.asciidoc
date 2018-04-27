@@ -8,7 +8,7 @@ other artifacts like custom script extensions, you need to trigger the deploymen
 with using a template link. Hence you have to upload the project into a repository 
 before you can test it. 
 
-These plugin provides a workflow for creating, testing adn publishing ARM templates
+These plugin provides a workflow for creating, testing and publishing ARM templates
 in context of a gradle project. For testing templates, they will be uploaded temporary
 into a BlobContainer. So you can test the deployment before you commit it into a VCS.
 
